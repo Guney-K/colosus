@@ -27,6 +27,13 @@ megatron.methods.getDataLayerValue = function(fieldName){
     }
 }
 
+megatron.methods.createUniqueID = function(){
+    return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
+}
+megatron.methods.createCustomerHash = function(){
+    return megatron.methods.createUniqueID() + megatron.methods.createUniqueID() + '-' + megatron.methods.createUniqueID() + '-' + megatron.methods.createUniqueID() + '-' + megatron.methods.createUniqueID() + '-' + Date.now();
+}
+
 
 
 
@@ -87,7 +94,7 @@ megatron.determineTransportMethod = function (){
 
 //intialize while loading. 
 megatron.settings ={
-    'name': 'mt', //Name of the tracker object. Not in V1 but in future, we might need it to add multiple different trackers on the page
+    'name': megatron.name, //Name of the tracker object. Not in V1 but in future, we might need it to add multiple different trackers on the page
     'pulseRate': 15, //In seconds
     'pulseLifeTime': 1200, //20 mins in seconds
     'isPulseEnabled': true,
@@ -169,14 +176,14 @@ megatron.setCookie = function(cName, cValue, expDays) {
 
 /* Set or get and return Customer hash cookie */
 megatron.initCustomerHash = function (chcName, chcDays, isUpdate){
+
     var customerHash = megatron.getCookie(chcName);
 
-
     if (customerHash === false) {
-        //Generate customerHash and return
-        //TODO:Write the customerHash creator function here
-        //producedCustomerHash = "custom123." + megatron.settings.rawTime.now();
-        producedCustomerHash = "custom123." + Date.now();
+        //Invoke customer hash generator function
+        producedCustomerHash = megatron.methods.createCustomerHash();
+
+        //Set new customer hash
         megatron.setCookie(chcName, producedCustomerHash, chcDays);
         return megatron.getCookie(chcName);
 
@@ -490,7 +497,6 @@ megatron.customData = { //TODO_V2
 */
 
 
-//megatron.execCommand  = function (command, param, val1, val2, val3, val4, val5 ){
 megatron.execCommand = function (args){
 
     var argList = [];
@@ -501,6 +507,7 @@ megatron.execCommand = function (args){
     for(var i = 0; i < args.length; i++){
         argList.push(args[i]);
     }
+
     if(argList[0] !== 'undefined' ){
         command = argList[0];
     }else{
@@ -701,6 +708,7 @@ megatron.execCommand = function (args){
 
 /* Initialize Megarton! */
 megatron.init = function(){
+
     //Initialize customer hash cookie
     megatron.data.core['customerHash'].value = megatron.initCustomerHash(megatron.settings.cookieName, megatron.settings.cookieExpires, megatron.settings.isCookieRefresh);
 
