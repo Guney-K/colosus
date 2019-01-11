@@ -15,11 +15,24 @@ megatron.data = {};
 megatron.methods = {};
 megatron.utility = {};
 megatron.constants = {
-    set: 'set',
-    send: 'send',
+    commandSet: 'set',
+    commandSend: 'send',
+    commandCreate: 'create',
+    hitType: {
+        pageview: 'pageview',
+        performance: 'performance',
+        pulse: 'pulse',
+        event: 'event',
+        timing: 'timing',
+        social: 'social'
+    },
+    defaultDataSource: 'web',
     not_set: 'not_set',
     globalFunctionNamePointer: 'megatronObj',
     imageName: 'megatron.png',
+    beacon: 'beacon',
+    xhr: 'xhr',
+    img: 'img',
     nonInteraction: { // Needed for hits that should always be non-interaction
         nonInt : { 
             queryParam: 'ni',
@@ -97,7 +110,6 @@ megatron.methods.determineTransportMethod = function determineTransportMethod() 
     //END -- TODO_V2: Add user transport method preference check */
 
     if (navigator.sendBeacon) {
-        transportMethod = 'beacon';
         return function transportMethod(payLoad) {
             console.log('--Sent Beacon--');
             
@@ -111,7 +123,7 @@ megatron.methods.determineTransportMethod = function determineTransportMethod() 
     }
     
     if (window.XMLHttpRequest) {
-        transportMethod = 'xhr';
+
         return function transportMethod(payLoad) {
             var jsonPayload = JSON.parse('{"' + payLoad.substr(1).replace(/"/g, '\\"').replace(/&/g, '","').replace(/=/g,'":"') + '"}')
             var mtXHR = new XMLHttpRequest();
@@ -128,7 +140,6 @@ megatron.methods.determineTransportMethod = function determineTransportMethod() 
         }
     }
 
-    transportMethod = 'img';
     return function transportMethod(payLoad) {
         console.log('--Sent IMG--');
         var mtPixel = document.createElement('img');
@@ -174,10 +185,10 @@ megatron.utility.getDataLayerValue = function getDataLayerValue(fieldName) {
             if (dataLayer[i][fieldName]) {
 		        return dataLayer[i][fieldName];
             }
-            return 'not_set';
+            return megatron.constants.not_set;
         }
     }else {
-        return 'not_set';
+        return megatron.constants.not_set;
     }
 }
 
@@ -197,12 +208,12 @@ megatron.settings = {
     cookieName: megatron.constants.customerHash, //Cookie name for customer hash. // TODO_V2: user can override the default cookie name for customer hash
     rawTime: new Date(),
     version: '1.0.0',
-    dataSource: 'web',
+    dataSource: megatron.constants.defaultDataSource,
     isCookieRefresh: 1,
     cookieExpires: 730, //TODO: set 2 years at least. //Only for override 
     transportMethod: 'beacon', // TODO_V2: user can override the default transport method
     transport: megatron.methods.determineTransportMethod(),
-    server: 'not_set'
+    server: megatron.constants.not_set
 }
 
 /* Send Functions */
@@ -595,7 +606,7 @@ megatron.execCommand = function execCommand(args) {
     }
 
     switch (command) {
-        case 'send': {
+        case megatron.constants.commandSend: {
             //In order to remove case sensitivity. Convert command parameters to lower case
             if (param === undefined) {
                 console.log('Megatron: Command parameter is undefined');
@@ -605,7 +616,7 @@ megatron.execCommand = function execCommand(args) {
                 
             //Since we know param is defined, Check if it is supported and if yes, send the hit by providing necessary data objects
             switch (param) {
-                case 'pageview': { //Data: Core + Options
+                case megatron.constants.hitType.pageview: { //Data: Core + Options
                     //Define the hit type
                     megatron.data.core['hitType'].value = param;
                     //Check if options object contains proper commands and send the options only for this hit.
@@ -627,7 +638,7 @@ megatron.execCommand = function execCommand(args) {
                     }             
                     break;
                 }
-                case 'performance': {// Data: Core + Performance + nonInteraction
+                case megatron.constants.hitType.performance: {// Data: Core + Performance + nonInteraction
                     megatron.data.core['hitType'].value = param;
                     
                     //if performance is available, send necessary data
@@ -640,7 +651,7 @@ megatron.execCommand = function execCommand(args) {
                     }
                     break;
                 }
-                case 'event': {//Data: Core, Event, Options
+                case megatron.constants.hitType.event: {//Data: Core, Event, Options
                     megatron.data.core['hitType'].value = param;
 
                     if(argList[2] === undefined) {
@@ -683,7 +694,7 @@ megatron.execCommand = function execCommand(args) {
                         }
                         //Send overridden options
                         megatron.sendHit(megatron.data.core, overriddenOptions, eventData);
-                    }else {
+                    } else {
                         var eventData = Object.create(megatron.data.event);
 
                         if(argList[2] === undefined) {
@@ -691,7 +702,7 @@ megatron.execCommand = function execCommand(args) {
                             return undefined;
                         }
 
-                        for(var i=2; i < argList.length; i++) { //Prepare event data from command parameters
+                        for (var i=2; i < argList.length; i++) { //Prepare event data from command parameters
                             switch (i) {
                                 case 2: { 
                                     eventData.eventCategory.value = argList[i];
@@ -716,16 +727,16 @@ megatron.execCommand = function execCommand(args) {
                     }          
                     break;
                 }
-                case 'pulse': {// Data: Core + Performance + non interaction
+                case megatron.constants.hitType.pulse: {// Data: Core + Performance + non interaction
                     megatron.data.core['hitType'].value = param;
                     megatron.sendHit(megatron.data.core, megatron.constants.nonInteraction);
                     break;
                 }
-                case 'timing': {//TODOV2: Support timing hits. + non interaction
+                case megatron.constants.hitType.timing: {//TODOV2: Support timing hits. + non interaction
                     megatron.data.core['hitType'].value = param;
                     break;
                 }
-                case 'social': {//TODOV2: Support social hits.
+                case megatron.constants.hitType.social: {//TODOV2: Support social hits.
                     megatron.data.core['hitType'].value = param;
                     break;
                 }
@@ -736,7 +747,7 @@ megatron.execCommand = function execCommand(args) {
             }
             break;
         }
-        case 'set': {
+        case megatron.constants.commandSet: {
             //TODO: Check if parameter exists in one of the megatron data objects. If yes change the val else ignore the command and return message
             if (typeof param === 'object' && param.constructor === Object) {
 
@@ -765,7 +776,7 @@ megatron.execCommand = function execCommand(args) {
 
             break;
         }
-        case 'create': {
+        case megatron.constants.commandCreate: {
             //TODO: Check if parameter exists in one of the megatron data objects. If yes change the val else ignore the command and return message
             if (megatron.settings[param] !== undefined) {
 
@@ -838,3 +849,4 @@ megatron.init = function init() {
 
 
 megatron.init();
+
