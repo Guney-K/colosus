@@ -4,6 +4,8 @@ if (window['mt'] === undefined){window['mt'] = function(){(window['mt'].q = wind
 
 window['megatronObj'] = 'mt';
 
+
+//Initial Commands
 mt('set', 'enablePulse', true);
 mt('set', 'platformID', 'megatron-rocks123');
 mt('send', 'pageview');
@@ -152,11 +154,8 @@ megatron.methods.determineTransportMethod = function determineTransportMethod() 
 
 /* Utility Methods*/
 //TODO:DELETE Can be used for validation 
-megatron.utility.checkValid = function checkValid(checkVal) {
-    if(checkVal === undefined ) {
-        return false;
-    }
-    return true;
+megatron.utility.cloneObj = function cloneObj(targetObj) {
+    return JSON.parse( JSON.stringify(targetObj) );
 }
 
 // min 3 params
@@ -164,17 +163,26 @@ megatron.utility.checkValid = function checkValid(checkVal) {
 // the priority is in the position of the arguments
 megatron.utility.checkAndAssignElement = function checkAndAssignElement() {
     var args = Array.prototype.slice.call(arguments);
-    if(args.length < 3) return false; // error etc;
+    if (args.length < 3) return false; // error etc;
 
     var value = args.pop();
-    if(value === undefined) return false; // error etc;
+    if (value === undefined) {
+        console.log('Megatron: set value is undefined');
+        return false; // error etc;
+    }
     var key = args.pop();
-    for(argument in args){
-        if(args[argument].hasOwnProperty(key)) {
+    for (argument in args) {
+        if (args[argument].hasOwnProperty(key)) {
+            console.log(argument);
+            if (args[argument][key].hasOwnProperty('value')){
+                args[argument][key].value = value;
+                return true;
+            }
             args[argument][key] = value;
             return true;
         }
     }
+    console.log('Megatron: set parameter does not exist');
     return false;// not found etc;
 }
 
@@ -406,7 +414,7 @@ megatron.data.core = {
     }
 }
 
-megatron.data.event ={
+megatron.data.event = {
     eventCategory: {
         queryParam: 'ec',
         value: false
@@ -556,8 +564,13 @@ megatron.data.perfomance = function perfomance() {
 }
 
 
-megatron.data.custom = { //TODO_V2
+megatron.data.custom = { //TODO_V2: this should support unlimited custom dimensions
     /*
+    protocolVersion: {
+        queryParam: 'cd',
+        value: megatron.settings.version
+    },
+    
     queueTime: {
         queryParam: 'qt',
         value: false
@@ -577,13 +590,12 @@ megatron.data.custom = { //TODO_V2
 }
 
 
-
-
 megatron.execCommand = function execCommand(args) {
 
     var argList = Array.prototype.slice.call(args);
     var hasOptions = false;
-    var lastArg, command, param = '';
+    var lastArg = argList[argList.length-1];
+    var command, param = '';
 
 
     if (argList[0] !== undefined) {
@@ -621,13 +633,14 @@ megatron.execCommand = function execCommand(args) {
                     megatron.data.core['hitType'].value = param;
                     //Check if options object contains proper commands and send the options only for this hit.
                     if (hasOptions) {
-                        var overriddenOptions = Object.create(megatron.data.options);
+                        var overriddenOptions = megatron.utility.cloneObj(megatron.data.options);
+                        //var overriddenOptions = Object.create(megatron.data.options);
 
                         for (var i in lastArg) {
-                            if (overriddenOptions[i] !== undefined) {
+                            if (overriddenOptions[i] !== undefined && overriddenOptions.hasOwnProperty(i)) {
                                 overriddenOptions[i].value = lastArg[i];
                             }else {
-                                console.log('Megatron: command option not supported:'+i);
+                                console.log('Megatron: Options paramater not supported and ignored ' + i);
                             }
                         }
                         //Send overridden options
@@ -660,7 +673,8 @@ megatron.execCommand = function execCommand(args) {
                     }
 
                     if (hasOptions) {//TODO: check parameters if there is any existing
-                        var eventData = Object.create(megatron.data.event);
+                        var eventData = megatron.utility.cloneObj(megatron.data.event);
+                        
                         for(var i=2; i < argList.length-1; i++) { //Prepare event data from command parameters
                             //TODO: add condition to check if event parameter is valid
                             switch (i) {
@@ -683,19 +697,24 @@ megatron.execCommand = function execCommand(args) {
                             }
                         }
 
-                        var overriddenOptions = Object.create(megatron.data.options);
+                        var overriddenOptions = megatron.utility.cloneObj(megatron.data.options);
+
 
                         for (var i in lastArg) {
-                            if (overriddenOptions[i] !== 'undefined') {
+                            if  (eventData[i] !== undefined && eventData.hasOwnProperty(i)){
+                                eventData[i].value = lastArg[i];
+                                continue;
+                            }
+                            if (overriddenOptions[i] !== 'undefined' && overriddenOptions.hasOwnProperty(i)) {
                                 overriddenOptions[i].value = lastArg[i];
                             }else {
-                                console.log('Megatron: command option not supported:'+i);
+                                console.log('Megatron: Options paramater not supported and ignored ' + i);
                             }
                         }
                         //Send overridden options
                         megatron.sendHit(megatron.data.core, overriddenOptions, eventData);
                     } else {
-                        var eventData = Object.create(megatron.data.event);
+                        var eventData = megatron.utility.cloneObj(megatron.data.event);
 
                         if(argList[2] === undefined) {
                             console.log('Megatron: Event category is mandatory');
@@ -748,7 +767,6 @@ megatron.execCommand = function execCommand(args) {
             break;
         }
         case megatron.constants.commandSet: {
-            //TODO: Check if parameter exists in one of the megatron data objects. If yes change the val else ignore the command and return message
             if (typeof param === 'object' && param.constructor === Object) {
 
                 for (var i in param) {// loop over user's object fields
