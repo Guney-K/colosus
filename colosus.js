@@ -1,16 +1,3 @@
-//if (window['mgtrn'] === undefined){window['mgtrn'] = function(){(window['mgtrn'].q = window['mgtrn'].q || []).push(arguments);};window['mgtrn'].d='https://staging.cuponation.de/bwa/mgtrnh';}else{( console.log('N/A:' + 'mgtrn'))};
-if (window['mt'] === undefined){window['mt'] = function(){(window['mt'].q = window['mt'].q || []).push(arguments);};window['mt'].d='https://www.amazon.de';}else 
-{( console.log('N/A:' + 'mt'))};
-
-window['megatronObj'] = 'mt';
-
-
-//Initial Commands
-mt('set', 'enablePulse', true);
-mt('set', 'platformID', 'megatron-rocks123');
-mt('send', 'pageview');
-
-
 //Megatron Scope is initialized in the snippet and megatron.name is assigned for global function name //var megatron = {};
 window.megatron = window.megatron || {};
 megatron.data = {};
@@ -822,7 +809,7 @@ megatron.init = function init() {
         console.log('Megatron: ' + megatron.constants.globalFunctionNamePointer +' is not defined');
         return;
     }
-    megatron.name = window[megatron.constants.globalFunctionNamePointer].toString();
+    megatron.name = window[megatron.constants.globalFunctionNamePointer].name;
 
     if (window[megatron.name].q !== undefined) { //Execute initial queued commands and reinitialize global megatron function
         megatron.settings.server = window[megatron.name].d;
@@ -861,10 +848,37 @@ megatron.init = function init() {
             }, (megatron.settings.pulseRate * 1000));
         }
     } else {
-        console.log('Megatron: Queue is undefined');
+        console.log('Megatron: Queue is empty.');
+
+                //Re-associate global queue command function to execute the command immediatley from now on
+                window[megatron.name] = function mgtrnMain() {
+                    megatron.execCommand(arguments); 
+                }
+        
+                //Send performance request on window loaded. TODO: Test if there is need for delay
+                window.addEventListener('load', megatron.execCommand(['send','performance']));
+        
+                
+                //Add Pulse if it is enabled and the browser supports the visibility state
+                var checkVS = megatron.methods.checkVisibilitySupport();
+                if (megatron.settings.enablePulse && checkVS) {
+                    //Add event listener for onfocus and onblur functions
+                    
+        
+                    window[megatron.name].interval = setInterval(function() {
+                        // Pulse will work 20 minutes regargless of browser focus for the particular page.
+                        if ( ((Date.now() - megatron.settings.rawTime.getTime())/1000) < megatron.settings.pulseLifeTime) {
+                            if (megatron.methods.pulseCheck() && megatron.settings.enablePulse) {
+                                megatron.execCommand(['send','pulse']);
+                            }
+                        } else {
+                            clearInterval(window[megatron.name].interval);
+                        }
+                        
+                    }, (megatron.settings.pulseRate * 1000));
+                }
     }
 }
 
 
 megatron.init();
-
