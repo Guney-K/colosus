@@ -1,4 +1,4 @@
-//Megatron Scope is initialized in the snippet and megatron.name is assigned for global function name //var megatron = {};
+//Megatron Scope is initialized in the snippet and megatron.name is assigned for global function name //var megatron = {};
 window.megatron = window.megatron || {};
 megatron.data = {};
 megatron.methods = {};
@@ -7,6 +7,7 @@ megatron.constants = {
     commandSet: 'set',
     commandSend: 'send',
     commandCreate: 'create',
+    customerHash: 'customerHash',
     hitType: {
         pageview: 'pageview',
         performance: 'performance',
@@ -18,17 +19,19 @@ megatron.constants = {
     defaultDataSource: 'web',
     not_set: 'not_set',
     globalFunctionNamePointer: 'megatronObj',
-    imageName: 'megatron.png',
     beacon: 'beacon',
     xhr: 'xhr',
     img: 'img',
-    nonInteraction: { // Needed for hits that should always be non-interaction
+    visibilitySupportName: 'not_set',
+    // Needed for hits that should always be non-interaction
+    nonInteraction: { 
         nonInt : { 
             queryParam: 'ni',
             value: 1
         } 
     },
-    cacheBuster: { //since we are sending the timestamp, this might not be needed
+    //since we are sending the timestamp, this might not be needed
+    cacheBuster: { 
         queryParam: 'z'
     }
 }
@@ -38,25 +41,7 @@ megatron.methods.createCustomerHash = function createCustomerHash() {
     return megatron.utility.createUniqueID() + megatron.utility.createUniqueID() + '-' + megatron.utility.createUniqueID() + '-' + megatron.utility.createUniqueID() + '-' + megatron.utility.createUniqueID() + '-' + Date.now();
 }
 
-/*TODO:DELETE 
-megatron.methods.defibrillate = function defibrillate() {
-    megatron.settings.isPulsating = true;
-    console.log('focused');
-}
-megatron.methods.cardiacArrest = function cardiacArrest() {
-    megatron.settings.isPulsating = false;
-    console.log('blured');
-}
-megatron.methods.pulseChek = function pulseChek() {
-    if (window.addEventListener) {
-        window.addEventListener('focus', megatron.methods.defibrillate);
-        window.addEventListener('blur', megatron.methods.cardiacArrest);
-    }else if (window.attachEvent) {// IE9- and Opera 6- Support
-        window.attachEvent('onfocus', megatron.methods.defibrillate);
-        window.attachEvent('onblur', megatron.methods.cardiacArrest);
-    }
-}
-*/
+
 megatron.methods.checkVisibilitySupport = function checkVisibilitySupport() {
     var browserSupportKeys = {
             vs: "visibilityState",
@@ -67,7 +52,7 @@ megatron.methods.checkVisibilitySupport = function checkVisibilitySupport() {
 
     for (var key in browserSupportKeys) {
         if (browserSupportKeys[key] in document) {
-            megatron.settings.visibilitySupportName = browserSupportKeys[key];
+            megatron.constants.visibilitySupportName = browserSupportKeys[key];
             return true;
         }
     }
@@ -75,16 +60,10 @@ megatron.methods.checkVisibilitySupport = function checkVisibilitySupport() {
 }
 
 megatron.methods.pulseCheck = function pulseChek() {
-    if (document[megatron.settings.visibilitySupportName] === 'visible'){
+    if (document[megatron.constants.visibilitySupportName] === 'visible'){
         return true;
     } 
     return false;
-}
-
-
-//TODO:DELETE Check if global function name is defined.
-megatron.methods.getNameIfExists = function getNameIfExists() {
-    return (window[megatron.constants.globalFunctionNamePointer] === undefined) ? window[megatron.constants.globalFunctionNamePointer].toString() : false;
 }
 
 /* Transport determination*/
@@ -100,7 +79,7 @@ megatron.methods.determineTransportMethod = function determineTransportMethod() 
 
     if (navigator.sendBeacon) {
         return function transportMethod(payLoad) {
-            console.log('--Sent Beacon--');
+            //console.log('--Sent Beacon--');
             
             var destinationURL = megatron.settings.server + '?' + megatron.constants.cacheBuster.queryParam + '=' + megatron.utility.getRandomNumber();
             var jsonPayload = JSON.stringify(JSON.parse('{"' + payLoad.substr(1).replace(/"/g, '\\"').replace(/&/g, '","').replace(/=/g,'":"') + '"}'));
@@ -118,7 +97,7 @@ megatron.methods.determineTransportMethod = function determineTransportMethod() 
             var destinationURL = megatron.settings.server + '?' + megatron.constants.cacheBuster.queryParam + '=' + megatron.utility.getRandomNumber();
             var jsonPayload = JSON.parse('{"' + payLoad.substr(1).replace(/"/g, '\\"').replace(/&/g, '","').replace(/=/g,'":"') + '"}')
             var mtXHR = new XMLHttpRequest();
-            mtXHR.open('POST', destinationURL, true);//asyn POST request
+            mtXHR.open('POST', destinationURL, true);/* 'true' asyn POST request */
             mtXHR.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8');
             mtXHR.send(JSON.stringify(jsonPayload));
 
@@ -132,9 +111,11 @@ megatron.methods.determineTransportMethod = function determineTransportMethod() 
     }
 
     return function transportMethod(payLoad) {
-        console.log('--Sent IMG--');
+        //console.log('--Sent IMG--');
         var mtPixel = document.createElement('img');
-        mtPixel.src = megatron.settings.server + '/' + megatron.constants.imageName + payLoad + '&' + megatron.constants.cacheBuster.queryParam + '=' + megatron.utility.getRandomNumber();
+        mtPixel.width = 1;
+        mtPixel.height = 1;
+        mtPixel.src = megatron.settings.server + '/' + payLoad + '&' + megatron.constants.cacheBuster.queryParam + '=' + megatron.utility.getRandomNumber();
         document.body.appendChild(mtPixel);
     }
     
@@ -158,7 +139,7 @@ megatron.methods.initPostQueueAll = function initPostQueueAll() {
                         
             
                         window[megatron.name].interval = setInterval(function() {
-                            // Pulse will work 20 minutes regargless of browser focus for the particular page.
+                            // Pulse will work 20 minutes regardless of browser focus for the particular page.
                             if ( ((Date.now() - megatron.settings.rawTime.getTime())/1000) < megatron.settings.pulseLifeTime) {
                                 if (megatron.methods.pulseCheck() && megatron.settings.enablePulse) {
                                     megatron.execCommand(['send','pulse']);
@@ -173,7 +154,6 @@ megatron.methods.initPostQueueAll = function initPostQueueAll() {
 
 
 /* Utility Methods*/
-//TODO:DELETE Can be used for validation 
 megatron.utility.cloneObj = function cloneObj(targetObj) {
     return JSON.parse( JSON.stringify(targetObj) );
 }
@@ -187,7 +167,7 @@ megatron.utility.getRandomNumber = function getRandomNumber() {
 // the priority is in the position of the arguments
 megatron.utility.checkAndAssignElement = function checkAndAssignElement() {
     var args = Array.prototype.slice.call(arguments);
-    if (args.length < 3) return false; // error etc;
+    if (args.length < 3) return false;
 
     var value = args.pop();
     if (value === undefined) {
@@ -197,7 +177,7 @@ megatron.utility.checkAndAssignElement = function checkAndAssignElement() {
     var key = args.pop();
     for (argument in args) {
         if (args[argument].hasOwnProperty(key)) {
-            console.log(argument);
+            //console.log(argument);
             if (args[argument][key].hasOwnProperty('value')){
                 args[argument][key].value = value;
                 return true;
@@ -207,7 +187,20 @@ megatron.utility.checkAndAssignElement = function checkAndAssignElement() {
         }
     }
     console.log('Megatron: set parameter does not exist');
-    return false;// not found etc;
+    return false;
+}
+
+
+megatron.utility.getRootDomain = function getRootDomain(hostName){
+    var parsedHostname = hostName.split('.').reverse();
+    if (parsedHostname.length > 2) {
+        // see if the second level domain is a common SLD.
+        if (parsedHostname[1].match(/^(com|edu|gov|net|mil|org|nom|co|name|info|biz)$/i)) {
+           return parsedHostname[2] + '.' + parsedHostname[1] + '.' + parsedHostname[0];
+        }
+    }
+    return parsedHostname[1] + '.' + parsedHostname[0];
+    
 }
 
 /* Generic method to get a datalayer value*/
@@ -232,19 +225,17 @@ megatron.utility.createUniqueID = function createUniqueID() {
 
 //intialize while loading. 
 megatron.settings = {
-    name: megatron.name, //Name of the tracker object. Not in V1 but in future, we might need it to add multiple different trackers on the page
-    pulseRate: 15, //In seconds
-    pulseLifeTime: 1200, //20 mins in seconds
+    name: megatron.name, /* Name of the tracker object. Not in V1 but in future, we might need it to add multiple different trackers on the page*/
+    pulseRate: 15, /* In seconds*/
+    pulseLifeTime: 1200, /*20 mins in seconds*/
     enablePulse: false,
-    visibilitySupportName: false,
-    cookieName: megatron.constants.customerHash, //Cookie name for customer hash. // TODO_V2: user can override the default cookie name for customer hash
-    cookieName2: 'customerHash2',
+    cookieName: megatron.constants.customerHash, /*Cookie name for customer hash.  TODO_V2: user can override the default cookie name for customer hash*/
     rawTime: new Date(),
     version: '1.0.0',
     dataSource: megatron.constants.defaultDataSource,
     isCookieRefresh: 1,
-    cookieExpires: 730, //TODO: set 2 years at least. //Only for override 
-    transportMethod: 'beacon', // TODO_V2: user can override the default transport method
+    cookieExpires: 730, /*In days Only for override */
+    transportMethod: 'beacon', /* TODO_V2: user can override the default transport method*/
     transport: megatron.methods.determineTransportMethod(),
     server: megatron.constants.not_set
 }
@@ -257,9 +248,8 @@ megatron.methods.preparePayload = function preparePayload(payloadData) {
         if (payloadData[key].value !== undefined && payloadData[key].value !== false && key !== 'toJSON') {
             //Encode and concatanate the query parameter and its value
             payloadString += payloadData[key].queryParam + '=' + encodeURIComponent(payloadData[key].value) + '&';
-        } 
+        }
     }
-   
     return payloadString;
 }
 
@@ -278,7 +268,7 @@ megatron.sendHit = function sendHit() {
     megatron.settings.transport(payload);
 
 
-    console.log("Hit send: " + payload);
+    //console.log("Hit send: " + payload);
 }
 /* ENDSend Functions */
 
@@ -306,8 +296,10 @@ megatron.utility.getCookie = function getCookie(cookieName) {
 megatron.utility.setCookie = function setCookie(cName, cValue, expDays) {
     var d = new Date();
     d.setTime(d.getTime() + (expDays * 24 * 60 * 60 * 1000));
+    var rootDomainName = megatron.utility.getRootDomain(window.location.hostname);
     var cExp = 'expires=' + d.toUTCString();
-    document.cookie = cName + '=' + cValue + ';' + cExp + ';path=/';
+    document.cookie = cName + '=' + cValue + ';' + cExp + ';path=/;domain=.' + rootDomainName + ';';
+    //console.log(cName + '=' + cValue + ';' + cExp + ';path=/;domain=.' + rootDomainName + ';');
 }
 /* END Generic function to set a cookie value */
 
@@ -344,35 +336,34 @@ megatron.methods.initCustomerHash = function initCustomerHash(chcName, chcDays, 
 //when there is set command, execute prepare core payload again
 megatron.data.core = {
     protocolVersion: {
-        queryParam: 'protocolVersion',
+        queryParam: 'v',
         value: megatron.settings.version
     },
     platformID: {
-        queryParam: 'platformID',
+        queryParam: 'cu',
         value: false //defined in snippet
     },
     customerHash: {
         queryParam: 'customerHash',
         value: megatron.constants.not_set
     },
-    customerHash2: {
-        queryParam: 'customerHash2',
-        value: megatron.constants.not_set
-    },
     dataSource: {
-        queryParam: 'dataSource',
-        value: megatron.settings.dataSource  //'web', 'mobileapp', 'extension' or 'toolbar' otherwise throw "datasource not defined"
+        queryParam: 'ds',
+        value: megatron.settings.dataSource  
+        //'web', 'mobileapp', 'extension' or 'toolbar' otherwise throw "datasource not defined"
     },
-    hitType: {//parse from url and allow to set???
-        queryParam: 'hitType',
+    hitType: {
+        //parse from url and allow to set???
+        queryParam: 't',
         value: megatron.constants.not_set
     },
     location: {
-        queryParam: 'location',
-        value: location.href //defined in snippet
+        queryParam: 'dl',
+        value: location.href 
+        //defined in snippet
     },
     userLanguage: {
-        queryParam: 'userLanguage',
+        queryParam: 'ul',
         value:(function () {
             if (typeof navigator.language !== undefined || navigator.language !== '') {
                 return navigator.language;
@@ -386,44 +377,45 @@ megatron.data.core = {
         }())
     },
     encoding: {
-        queryParam: 'encoding',
+        queryParam: 'de',
         value: document.inputEncoding
     },
     title: {
-        queryParam: 'title',
+        queryParam: 'dt',
         value: document.title
     },
     screenColors: {
-        queryParam: 'screenColors',
+        queryParam: 'sd',
         value: screen.colorDepth + '-bit'
     },
     screenResolution: {
-        queryParam: 'screenResolution',
+        queryParam: 'sr',
         value: window.screen.width + 'x' + window.screen.height
     },
     viewportSize: {
-        queryParam: 'viewportSize',
+        queryParam: 'vp',
         value: window.innerWidth + 'x' + window.innerHeight
     },
     deviceCategory: {
-        queryParam: 'deviceCategory',
+        queryParam: 'dcat',
         value: megatron.utility.getDataLayerValue('webTheme')
     },
     pageType: {
-        queryParam: 'pageType',
+        queryParam: 'pgt',
         value:megatron.utility.getDataLayerValue('pageType')
     },
     hostName: {
-        queryParam: 'hostName',
+        queryParam: 'dh',
         value: false
     },
     pathName: {
-        queryParam: 'pathName',
+        queryParam: 'dp',
         value: false
     },
     timeZoneUtcOffset: {
-        queryParam: 'timeZoneUtcOffset',
-        value: megatron.settings.rawTime.getTimezoneOffset() //UTC Time zone offest in minutes
+        queryParam: 'tzuo',
+        //UTC Time zone offest in minutes
+        value: megatron.settings.rawTime.getTimezoneOffset() 
     },
     _ga: {//GA related ids are optional
         queryParam: 'gaid',
@@ -441,30 +433,31 @@ megatron.data.core = {
 
 megatron.data.event = {
     eventCategory: {
-        queryParam: 'eventCategory',
+        queryParam: 'ec',
         value: false
     },
     eventAction: {
-        queryParam: 'eventAction',
+        queryParam: 'ea',
         value: false
     },
     eventLabel: {
-        queryParam: 'eventLabel',
+        queryParam: 'el',
         value: false
     },
     eventValue: {
-        queryParam: 'eventValue',
+        queryParam: 'ev',
         value: false
     }
 }
 
 // Values should be changed with 'set' command
 megatron.data.options = {
-
-    referrer: {//Send only when there is referrer value exists and different hostname
+    //Send only when there is referrer value exists and different hostname
+    referrer: {
         queryParam: 'dr',
         value: (function() {
-            if ((typeof document.referrer  !== undefined) && (document.referrer  !== '')) {//If there is referrer info
+            //Check if there is referrer info
+            if ((typeof document.referrer  !== undefined) && (document.referrer  !== '')) {
                 //check if referrer is the same origin
                 if (document.referrer.indexOf(location.host) > -1) {
                     return false;
@@ -476,11 +469,11 @@ megatron.data.options = {
         }())
     },
     anonymizeIp: {
-        queryParam: 'anonymizeIp',
+        queryParam: 'aip',
         value: false
     },
     queueTime: {
-        queryParam: 'queueTime',
+        queryParam: 'qt',
         value: false
     },
     gaID: {
@@ -488,62 +481,62 @@ megatron.data.options = {
         value: false
     },
     sessionControl: {
-        queryParam: 'sessionControl',
+        queryParam: 'sc',
         value: false
     },
     userHash: {
-        queryParam: 'userHash',
+        queryParam: 'uh',
         value: false
     },
     nonInteraction: {
-        queryParam: 'nonInteraction',
+        queryParam: 'ni',
         value: false
     },
-    userIp: {//Only override
-        queryParam: 'userIp',
+    userIp: {/* Only override */
+        queryParam: 'uip',
         value: false
     },
-    userAgent: {//Only override
-        queryParam: 'userAgent',
+    userAgent: {/* Only override */
+        queryParam: 'ua',
         value: false
     },
-    geoLocation: {//Only override
-        queryParam: 'geoLocation',
+    geoLocation: {/* Only override */
+        queryParam: 'geoid',
         value: false
     },
-    campaignName: {//Will not be provided from url, only for override
-        queryParam: 'campaignName',
+    campaignName: {/* Will not be provided from url, only for override */
+        queryParam: 'cn',
         value: false
     },
-    campaignTerm: {//Will not be provided from url, only for override
-        queryParam: 'campaignTerm',
+    campaignTerm: {/* Will not be provided from url, only for override */
+        queryParam: 'ct',
         value: false
     },
-    campaignSource: {//Will not be provided from url, only for override
-        queryParam: 'campaignSource',
+    campaignSource: {/* Will not be provided from url, only for override */
+        queryParam: 'cs',
         value: false
     },
-    campaignMedium: {//Will not be provided from url, only for override
-        queryParam: 'campaignMedium',
+    campaignMedium: {/* Will not be provided from url, only for override */
+        queryParam: 'cm',
         value: false
     },
-    campaignContent: {//Will not be provided from url, only for override
-        queryParam: 'campaignContent',
+    campaignContent: {/* Will not be provided from url, only for override */
+        queryParam: 'cc',
         value: false
     },
-    campaignKeyword: {//Will not be provided from url, only for override
-        queryParam: 'campaignKeyword',
+    campaignKeyword: {/* Will not be provided from url, only for override */
+        queryParam: 'ck',
         value: false
     },
-    campaignId: {//Will not be provided from url, only for override
-        queryParam: 'campaignId',
+    campaignId: {/* Will not be provided from url, only for override */
+        queryParam: 'ci',
         value: false
     },
-    gclid: {//Will not be provided from url, only for override
+    gclid: {/* Will not be provided from url, only for override */
         queryParam: 'gclid',
         value: false
     },
-    dcid: {//parse from url and allow to set???
+    dcid: {/* parse from url and allow to set??? */
         queryParam: 'dcid',
         value: false
     },
@@ -577,7 +570,7 @@ megatron.data.perfomance = function perfomance() {
         var performanceData = {}
         for (var i in window.performance.timing) {
             if (i !== 'toJSON') {
-                performanceData[i] = {
+                performanceData[i] = {
                     queryParam: i,
                     value: window.performance.timing[i],
                 }
@@ -600,10 +593,14 @@ megatron.data.custom = { //TODO_V2: this should support unlimited custom dimensi
         queryParam: 'qt',
         value: false
     },
+
+
     customDimensions = [], //TODO_V2: Add custom dimensions
     cg2:customDimension[1], //only when it is set. implement option to send with single or all hits
+
     customMetrics = [], //TODO_V2: Add custom metrics
     cg2:customMetric[1], //only when it is set. implement option to send with single or all hits
+
     cg1:contentGroup[0], //only when it is set. implement option to send with single or all hits. Change the values with the option object
     contentGroup=[], //TODO_V2: Add content groups
     */
@@ -649,7 +646,8 @@ megatron.execCommand = function execCommand(args) {
                 
             //Since we know param is defined, Check if it is supported and if yes, send the hit by providing necessary data objects
             switch (param) {
-                case megatron.constants.hitType.pageview: { //Data: Core + Options
+                case megatron.constants.hitType.pageview: { 
+                    //Data: Core + Options
                     //Define the hit type
                     megatron.data.core['hitType'].value = param;
                     //Check if options object contains proper commands and send the options only for this hit.
@@ -672,7 +670,8 @@ megatron.execCommand = function execCommand(args) {
                     }             
                     break;
                 }
-                case megatron.constants.hitType.performance: {// Data: Core + Performance + nonInteraction
+                case megatron.constants.hitType.performance: {
+                    // Data: Core + Performance + nonInteraction
                     megatron.data.core['hitType'].value = param;
                     
                     //if performance is available, send necessary data
@@ -685,7 +684,8 @@ megatron.execCommand = function execCommand(args) {
                     }
                     break;
                 }
-                case megatron.constants.hitType.event: {//Data: Core, Event, Options
+                case megatron.constants.hitType.event: {
+                    //Data: Core, Event, Options
                     megatron.data.core['hitType'].value = param;
 
                     if(argList[2] === undefined) {
@@ -693,10 +693,12 @@ megatron.execCommand = function execCommand(args) {
                         return undefined;
                     }
 
-                    if (hasOptions) {//TODO: check parameters if there is any existing
+                    if (hasOptions) {
+                        //TODO: check parameters if there is any existing
                         var eventData = megatron.utility.cloneObj(megatron.data.event);
                         
-                        for(var i=2; i < argList.length-1; i++) { //Prepare event data from command parameters
+                        for(var i=2; i < argList.length-1; i++) {
+                            //Prepare event data from command parameters
                             //TODO: add condition to check if event parameter is valid
                             switch (i) {
                                 case 2: { 
@@ -742,7 +744,8 @@ megatron.execCommand = function execCommand(args) {
                             return undefined;
                         }
 
-                        for (var i=2; i < argList.length; i++) { //Prepare event data from command parameters
+                        for (var i=2; i < argList.length; i++) { 
+                            //Prepare event data from command parameters
                             switch (i) {
                                 case 2: { 
                                     eventData.eventCategory.value = argList[i];
@@ -767,16 +770,19 @@ megatron.execCommand = function execCommand(args) {
                     }          
                     break;
                 }
-                case megatron.constants.hitType.pulse: {// Data: Core + Performance + non interaction
+                case megatron.constants.hitType.pulse: {
+                    // Data: Core + Performance + non interaction
                     megatron.data.core['hitType'].value = param;
                     megatron.sendHit(megatron.data.core, megatron.constants.nonInteraction);
                     break;
                 }
-                case megatron.constants.hitType.timing: {//TODOV2: Support timing hits. + non interaction
+                case megatron.constants.hitType.timing: {
+                    //TODOV2: Support timing hits. + non interaction
                     megatron.data.core['hitType'].value = param;
                     break;
                 }
-                case megatron.constants.hitType.social: {//TODOV2: Support social hits.
+                case megatron.constants.hitType.social: {
+                    //TODOV2: Support social hits.
                     megatron.data.core['hitType'].value = param;
                     break;
                 }
@@ -789,8 +795,8 @@ megatron.execCommand = function execCommand(args) {
         }
         case megatron.constants.commandSet: {
             if (typeof param === 'object' && param.constructor === Object) {
-
-                for (var i in param) {// loop over user's object fields
+                // loop over user's object fields
+                for (var i in param) {
                     
                     if (i === undefined) {
                         console.log('Megatron: command option not defined:' + i);
@@ -839,16 +845,16 @@ megatron.init = function init() {
 
     //Initialize customer hash cookie
     megatron.data.core['customerHash'].value = megatron.methods.initCustomerHash(megatron.settings.cookieName, megatron.settings.cookieExpires, megatron.settings.isCookieRefresh);
-    megatron.data.core['customerHash2'].value = megatron.methods.initCustomerHash(megatron.settings.cookieName2, megatron.settings.cookieExpires, megatron.settings.isCookieRefresh);
     if (window[megatron.constants.globalFunctionNamePointer] === undefined) {
         console.log('Megatron: ' + megatron.constants.globalFunctionNamePointer +' is not defined');
         return;
     }
     megatron.name = window[megatron.constants.globalFunctionNamePointer].name;
-
-    if (window[megatron.name].q !== undefined) { //Execute initial queued commands and reinitialize global megatron function
+    //Execute initial queued commands and reinitialize global megatron function
+    if (window[megatron.name].q !== undefined) { 
         megatron.settings.server = window[megatron.name].d;
-        megatron.queue = window[megatron.name].q; //window[megatron.name].q = Array of arguments
+        //window[megatron.name].q = Array of arguments
+        megatron.queue = window[megatron.name].q; 
         //iterate the command queue
         while (megatron.queue.length !== 0) {
             megatron.execCommand(megatron.queue[0]);
