@@ -8,6 +8,7 @@ megatron.constants = {
     commandSend: 'send',
     commandCreate: 'create',
     customerHash: 'customerHash',
+    customerHash2: 'customerHashM',
     hitType: {
         pageview: 'pageview',
         performance: 'performance',
@@ -135,6 +136,7 @@ megatron.methods.initPostQueueAll = function initPostQueueAll() {
                     //Add Pulse if it is enabled and the browser supports the visibility state
                     var checkVS = megatron.methods.checkVisibilitySupport();
                     if (megatron.settings.enablePulse && checkVS) {
+                        //Add event listener for onfocus and onblur functions
                         
             
                         window[megatron.name].interval = setInterval(function() {
@@ -229,6 +231,7 @@ megatron.settings = {
     pulseLifeTime: 1200, /*20 mins in seconds*/
     enablePulse: false,
     cookieName: megatron.constants.customerHash, /*Cookie name for customer hash.  TODO_V2: user can override the default cookie name for customer hash*/
+    cookieName2: megatron.constants.customerHash2,
     rawTime: new Date(),
     version: '1.0.0',
     dataSource: megatron.constants.defaultDataSource,
@@ -309,7 +312,7 @@ megatron.methods.initCustomerHash = function initCustomerHash(chcName, chcDays, 
 
     if (customerHash === false) {
         //Invoke customer hash generator function
-        var producedCustomerHash = megatron.methods.createCustomerHash();
+        producedCustomerHash = megatron.methods.createCustomerHash();
 
         //Set new customer hash
         megatron.utility.setCookie(chcName, producedCustomerHash, chcDays);
@@ -344,6 +347,10 @@ megatron.data.core = {
     },
     customerHash: {
         queryParam: 'customerHash',
+        value: megatron.constants.not_set
+    },
+    customerHash2: {
+        queryParam: 'customerHashM',
         value: megatron.constants.not_set
     },
     dataSource: {
@@ -844,6 +851,8 @@ megatron.init = function init() {
 
     //Initialize customer hash cookie
     megatron.data.core['customerHash'].value = megatron.methods.initCustomerHash(megatron.settings.cookieName, megatron.settings.cookieExpires, megatron.settings.isCookieRefresh);
+    megatron.data.core['customerHash2'].value = megatron.methods.initCustomerHash(megatron.settings.cookieName2, megatron.settings.cookieExpires, megatron.settings.isCookieRefresh);
+
     if (window[megatron.constants.globalFunctionNamePointer] === undefined) {
         console.log('Megatron: ' + megatron.constants.globalFunctionNamePointer +' is not defined');
         return;
